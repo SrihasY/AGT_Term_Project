@@ -9,21 +9,34 @@ import sys
 #Himanshu Choudhary 18CS10023#
 
 #constant definitions
-QUARANTINE = -2
-HAPPINESS_1 = 5
-HAPPINESS_2 = 10
+QUARANTINE = -1
+HAPPINESS_1 = 1
+HAPPINESS_2 = 2
 C = 1
 
+#array of p_i values
+pinf=[]
+
+n = int(input("Enter the number of players (students): "))
+
+print("Enter the value of p_i (probability of being infected) for each player, separated by newline:")
+for reader in range(n):
+    v = input()
+    pinf.append(v)
+    
+print(pinf)
+tab = []
+for tabcreate in range(2*n):
+    tab.append(3)
 #creating the game and the solver instances
-g = gambit.Game.new_table([3,3,3,3,3,3,3,3,3,3])
-solver = gambit.nash.ExternalEnumPureSolver()
+g = gambit.Game.new_table(tab)
 
 
 def utility(player, indexes, theta_profile):
     infectedcount = 0
     utility = float(0)
     #find number of infected people playing the same strategy
-    for i in range(5):
+    for i in range(n):
         if(theta_profile[i]==1 and indexes[player]==indexes[2*i+1]):
             infectedcount+=1
     
@@ -32,6 +45,7 @@ def utility(player, indexes, theta_profile):
         utility = HAPPINESS_1 - C*infectedcount
     elif(indexes[player]==2):
         utility = HAPPINESS_2 - C*infectedcount
+
     return utility
 
 def increment(indexes, size, actions):
@@ -49,7 +63,7 @@ def increment(indexes, size, actions):
 
 def marginal(player,theta_profile,P):
     pindexes=[]
-    for i in range(5):
+    for i in range(n):
         pindexes.append(0)
     prob = float(0)
     i=0
@@ -59,14 +73,14 @@ def marginal(player,theta_profile,P):
         if (pindexes[player]==theta_profile[player]):
             #all cases where 'player' has given type
             prob+=P[i]
-            for j in range(5):
+            for j in range(n):
                 if not pindexes[j]==theta_profile[j]:
                     #mismatch at some type
                     break
-                elif j==4:
+                elif j==n-1:
                     #probability of type profile = theta_profile
                     ptheta = P[i]
-        if not increment(pindexes, 5, 2):
+        if not increment(pindexes, n, 2):
             break
         i+=1
     #return the marginal probability
@@ -78,24 +92,23 @@ def marginal(player,theta_profile,P):
 #calculate the prior probability distribution
 P=[]
 pindexes=[]
-pinf=[0.1, 0.1, 0.1, 0.1, 0.1]
-for i in range(5):
+for pos in range(n):
     pindexes.append(0)
 while (True):
     prob=float(1)
     #find the joint probability of each player having the given type
-    for i in range(5):
+    for i in range(n):
         if(pindexes[i]==1):
             prob *= pinf[i]
         else:
             prob *= 1-pinf[i]
     P.append(prob)
-    if not increment(pindexes, 5, 2):
+    if not increment(pindexes, n, 2):
         break
 
 #update the utilities for each player and strategy
 for profile in g.contingencies:
-    for i in range(10):
+    for i in range(2*n):
         payoff = Decimal(0)
         g[profile][i] = Decimal(0)
         #payoff of quarantine
@@ -103,15 +116,21 @@ for profile in g.contingencies:
             g[profile][i] = QUARANTINE
         else:
             theta_prof = []
-            for i in range(5):
+            for tet in range(n):
                 theta_prof.append(0)
             while (True):
                 #add a term to the selten game utility
                 if(theta_prof[i/2]==(i%2)):
                     u = marginal(i/2, theta_prof, P)*utility(i, profile, theta_prof)
                     payoff = payoff + Decimal(u)
-                if not increment(theta_prof, 5, 2):
+                if not increment(theta_prof, n, 2):
                     break
-        g[profile][i] = payoff
+            g[profile][i] = payoff
 
-print(solver.solve(g))
+solver = gambit.nash.ExternalEnumPureSolver()
+original_stdout = sys.stdout
+with open('psnes.txt', 'w') as f:
+    sys.stdout = f # Change the standard output to the output file.
+    #solve for PSNEs
+    print(solver.solve(g))    
+    sys.stdout = original_stdout # Reset the standard output to its original value
